@@ -1,0 +1,268 @@
+/* ===================================================
+   EcoHabit Tracker — Native Mobile Stylesheet
+   ===================================================
+   This CSS eliminates "web in a wrapper" feel by adding:
+   - Safe area insets for notch/gesture-bar devices
+   - Native-feel touch feedback (no hover, press-down effects)
+   - Smooth page transitions (slide + fade)
+   - Overscroll prevention (no rubber-band / pull-to-refresh)
+   - Skeleton loading placeholders
+   - Dark mode white-flash prevention
+   =================================================== */
+
+/* ===== CSS VARIABLES ===== */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  --transition-fast: 180ms;
+  --transition-normal: 260ms;
+  --transition-slow: 400ms;
+
+  --ease-native: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-decel: cubic-bezier(0.0, 0.0, 0.2, 1);
+}
+
+/* ===== PREVENT WHITE FLASH ON LAUNCH ===== */
+html {
+  background-color: #f9fafb;
+}
+html.dark-bg {
+  background-color: #0f172a;
+}
+
+/* ===== BASE NATIVE BEHAVIOR ===== */
+html, body {
+  overscroll-behavior: none;           /* Kill pull-to-refresh */
+  -webkit-overflow-scrolling: touch;   /* Momentum scrolling on iOS */
+  touch-action: manipulation;          /* Disable double-tap zoom */
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: inherit;
+}
+
+/* Prevent text selection on chrome/UI elements */
+button, a, nav, [role="button"], label, .no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Allow text selection only in content areas */
+p, span, h1, h2, h3, h4, h5, h6, textarea, input {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Remove focus ring for touch, keep for keyboard */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+}
+
+/* ===== SAFE AREA HELPERS ===== */
+.safe-top {
+  padding-top: var(--safe-top);
+}
+
+.safe-bottom {
+  padding-bottom: var(--safe-bottom);
+}
+
+.content-safe {
+  padding-top: calc(40px + var(--safe-top));
+  padding-bottom: calc(88px + var(--safe-bottom));
+}
+
+.nav-safe {
+  padding-bottom: calc(8px + var(--safe-bottom));
+}
+
+.fullscreen-safe {
+  padding-top: calc(20px + var(--safe-top));
+  padding-bottom: calc(20px + var(--safe-bottom));
+}
+
+/* ===== TOUCH FEEDBACK ===== */
+/* Replaces hover effects with active/press states */
+.touch-btn {
+  transition: transform var(--transition-fast) var(--ease-native),
+              opacity var(--transition-fast) var(--ease-native);
+  will-change: transform;
+}
+.touch-btn:active {
+  transform: scale(0.96);
+  opacity: 0.8;
+}
+
+/* Subtle card press */
+.touch-card {
+  transition: transform var(--transition-fast) var(--ease-native);
+  will-change: transform;
+}
+.touch-card:active {
+  transform: scale(0.985);
+}
+
+/* Minimum touch target — 48dp per Material Design */
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* FAB press (the center log button) */
+.touch-fab {
+  transition: transform var(--transition-fast) var(--ease-native),
+              box-shadow var(--transition-fast) ease;
+  will-change: transform;
+}
+.touch-fab:active {
+  transform: scale(0.90);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* ===== PAGE TRANSITIONS ===== */
+.page-enter {
+  animation: pageEnter var(--transition-normal) var(--ease-decel) both;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Full-screen overlay slide-up (e.g. LogHabit) */
+.slide-up-enter {
+  animation: slideUpEnter var(--transition-normal) var(--ease-native) both;
+}
+.slide-up-exit {
+  animation: slideUpExit var(--transition-fast) ease-in both;
+}
+
+@keyframes slideUpEnter {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes slideUpExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+/* ===== STAGGER ANIMATION (cards / list items) ===== */
+.stagger-item {
+  opacity: 0;
+  animation: staggerIn var(--transition-slow) var(--ease-decel) both;
+}
+
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Counter pop-in */
+.count-pop {
+  animation: countPop 500ms var(--ease-bounce) both;
+}
+@keyframes countPop {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ===== SCROLLING ===== */
+.scroll-native {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ===== SKELETON LOADING ===== */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===== NAV BAR INDICATOR ===== */
+.nav-indicator {
+  transition: transform var(--transition-normal) var(--ease-native),
+              width var(--transition-normal) var(--ease-native);
+  will-change: transform;
+}
+
+/* ===== PROGRESS BAR ANIMATION ===== */
+.progress-animate {
+  transition: width 600ms var(--ease-decel);
+}
+
+/* ===== IMAGE OPTIMIZATIONS ===== */
+img {
+  content-visibility: auto;
+}
+
+/* ===== REDUCE MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

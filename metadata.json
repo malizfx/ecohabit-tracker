@@ -1,0 +1,8 @@
+{
+  "name": "EcoHabit Tracker",
+  "description": "A gamified eco-habit tracking app that helps you reduce your carbon footprint through challenges, streaks, and AI-powered insights.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
