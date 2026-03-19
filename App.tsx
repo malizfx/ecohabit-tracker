@@ -1,15 +1,12 @@
-
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import Navigation from './components/Navigation';
 import { UserProfile, HabitLog, DailyTip, Badge } from './types';
-import { getEcoTip } from './services/geminiService';
 import {
   initNativeApp,
   configureStatusBar,
   registerBackButton,
   unregisterBackButton,
   hapticSuccess,
-  hapticWarning,
 } from './services/nativeService';
 import { isToday, isYesterday } from './utils/formatTime';
 
@@ -27,6 +24,94 @@ const PageLoader = () => (
   </div>
 );
 
+/* ── Hardcoded eco tips (no AI required) ────────────── */
+const ECO_TIPS: DailyTip[] = [
+  {
+    title: 'Switch to Reusable Bags',
+    content: 'Bring a reusable bag when shopping. A single reusable bag can replace hundreds of plastic bags over its lifetime.',
+    category: 'Waste',
+  },
+  {
+    title: 'Shorten Your Shower',
+    content: 'Cutting your shower by just 2 minutes saves up to 10 litres of water — small changes add up fast.',
+    category: 'Water',
+  },
+  {
+    title: 'Eat One Plant-Based Meal Today',
+    content: 'Replacing one beef meal with a plant-based alternative saves roughly 2.5 kg of CO2 emissions.',
+    category: 'Food',
+  },
+  {
+    title: 'Unplug Idle Devices',
+    content: 'Electronics on standby can account for up to 10% of your home energy bill. Unplug chargers and appliances when not in use.',
+    category: 'Energy',
+  },
+  {
+    title: 'Choose Active Transport',
+    content: 'Walking or cycling instead of driving a 5 km trip saves about 1 kg of CO2 and improves your health too.',
+    category: 'Transport',
+  },
+  {
+    title: 'Start Composting',
+    content: 'Food waste in landfills produces methane, a potent greenhouse gas. Composting turns scraps into nutrient-rich soil instead.',
+    category: 'Waste',
+  },
+  {
+    title: 'Line-Dry Your Laundry',
+    content: 'Air-drying clothes instead of using a tumble dryer can save up to 2.4 kg of CO2 per load.',
+    category: 'Energy',
+  },
+  {
+    title: 'Buy Local Produce',
+    content: 'Locally grown food travels shorter distances, reducing transport emissions and supporting your local economy.',
+    category: 'Food',
+  },
+  {
+    title: 'Turn Off Lights When Leaving',
+    content: 'Simply switching off lights in empty rooms can reduce your household electricity use by around 15%.',
+    category: 'Energy',
+  },
+  {
+    title: 'Carry a Reusable Water Bottle',
+    content: 'A reusable bottle eliminates the need for single-use plastic bottles — Kenyans discard millions of plastic bottles every week.',
+    category: 'Waste',
+  },
+  {
+    title: 'Use Cold Water for Laundry',
+    content: 'Washing clothes in cold water uses up to 90% less energy than hot washes and is just as effective for most fabrics.',
+    category: 'Energy',
+  },
+  {
+    title: 'Plant a Tree or Support Reforestation',
+    content: 'A single mature tree absorbs around 21 kg of CO2 per year. Consider planting one or donating to a local reforestation effort.',
+    category: 'Nature',
+  },
+  {
+    title: 'Reduce Meat Consumption',
+    content: 'The livestock sector contributes roughly 14.5% of global greenhouse gas emissions. Even one meat-free day a week makes a difference.',
+    category: 'Food',
+  },
+  {
+    title: 'Use Public Transport',
+    content: 'Taking a bus instead of driving alone can cut your per-trip emissions by up to 70%.',
+    category: 'Transport',
+  },
+];
+
+/**
+ * Returns a consistent tip for the current calendar day.
+ * The index is derived from the date so it stays the same
+ * all day but rotates daily.
+ */
+const getDailyTip = (): DailyTip => {
+  const today = new Date();
+  const dayIndex =
+    today.getFullYear() * 10000 +
+    (today.getMonth() + 1) * 100 +
+    today.getDate();
+  return ECO_TIPS[dayIndex % ECO_TIPS.length];
+};
+
 /* ── Constants ──────────────────────────────────────── */
 const INITIAL_BADGES: Badge[] = [
   { id: 'b1', name: 'Seedling', icon: '🌱', unlocked: true, description: 'Started your journey' },
@@ -35,12 +120,10 @@ const INITIAL_BADGES: Badge[] = [
   { id: 'b4', name: 'Earth Hero', icon: '🌍', unlocked: false, description: 'Save 100kg CO2' },
 ];
 
-const TAB_HISTORY_KEY = 'dashboard'; // default "home" tab
-
 const App: React.FC = () => {
   /* ── State ────────────────────────────────────────── */
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [transitionKey, setTransitionKey] = useState(0); // forces re-mount for page-enter animation
+  const [transitionKey, setTransitionKey] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('eco_dark') === 'true';
   });
@@ -68,7 +151,9 @@ const App: React.FC = () => {
     return [];
   });
 
-  const [tip, setTip] = useState<DailyTip | null>(null);
+  // Tip is derived synchronously — no async call needed
+  const [tip] = useState<DailyTip>(getDailyTip);
+
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   /* ── Persist on change ────────────────────────────── */
@@ -82,67 +167,46 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem('eco_dark', String(isDarkMode));
-    // Apply dark-bg class to html for flash prevention
     document.documentElement.classList.toggle('dark-bg', isDarkMode);
-    // Update theme-color meta tag
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', isDarkMode ? '#0f172a' : '#f9fafb');
-    // Update native status bar
     configureStatusBar(isDarkMode);
   }, [isDarkMode]);
 
-  /* ── Init: location, tip, native plugins ──────────── */
+  /* ── Init: location, native plugins ──────────────── */
   useEffect(() => {
-    // Native setup
     initNativeApp(isDarkMode);
 
-    // Geolocation
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
         () => { } // silent fail
       );
     }
-
-    // Daily tip
-    loadTip();
   }, []);
 
   /* ── Android back button handling ─────────────────── */
   useEffect(() => {
     registerBackButton(() => {
-      if (activeTab === 'log') {
-        // Close the LogHabit overlay → go back to dashboard
-        handleTabChange('dashboard');
-      } else if (activeTab !== 'dashboard') {
-        // Navigate back to home
+      if (activeTab === 'log' || activeTab !== 'dashboard') {
         handleTabChange('dashboard');
       }
-      // If already on dashboard, let Android handle (minimize app)
     });
-
     return () => unregisterBackButton();
   }, [activeTab]);
 
   /* ── Tab switching with transition ────────────────── */
   const handleTabChange = useCallback((tab: string) => {
     if (tab === activeTab) return;
-    setTransitionKey(k => k + 1); // trigger page-enter animation
+    setTransitionKey(k => k + 1);
     setActiveTab(tab);
   }, [activeTab]);
-
-  /* ── Load daily eco tip ───────────────────────────── */
-  const loadTip = async () => {
-    const dailyTip = await getEcoTip(location);
-    setTip(dailyTip);
-  };
 
   /* ── Handle new habit log with PROPER streak logic ── */
   const handleNewLog = useCallback((newLog: HabitLog) => {
     setLogs(prev => [newLog, ...prev]);
 
     setUser(prev => {
-      // Smart streak: only increment once per day, reset if skipped a day
       const alreadyLoggedToday = logs.some(l => isToday(l.timestamp));
       let newStreak = prev.streak;
 
@@ -158,7 +222,7 @@ const App: React.FC = () => {
       };
     });
 
-    hapticSuccess(); // native vibration on success
+    hapticSuccess();
     setTransitionKey(k => k + 1);
     setActiveTab('dashboard');
   }, [logs]);
@@ -190,14 +254,12 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen min-h-[100dvh] ${isDarkMode ? 'dark' : ''}`}>
       <div className="max-w-md mx-auto min-h-screen min-h-[100dvh] flex flex-col">
-        {/* Page content with transition */}
         <Suspense fallback={<PageLoader />}>
           <div key={transitionKey} className={activeTab === 'log' ? 'slide-up-enter' : 'page-enter'}>
             {renderContent()}
           </div>
         </Suspense>
 
-        {/* Bottom nav — hidden on LogHabit overlay */}
         {activeTab !== 'log' && (
           <Navigation currentTab={activeTab} setTab={handleTabChange} />
         )}

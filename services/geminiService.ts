@@ -1,93 +1,60 @@
+/**
+ * habitService.ts (formerly geminiService.ts)
+ *
+ * Gemini AI has been removed. analyzeHabit now uses a
+ * simple rule-based estimator so the rest of the app
+ * (LogHabit component, etc.) continues to work without
+ * any API key or network call.
+ */
 
-import { GoogleGenAI, Type } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-export const analyzeHabit = async (category: string, description: string, photoBase64?: string) => {
-  const model = 'gemini-3-flash-preview';
-  
-  const prompt = `
-    Analyze this eco-friendly habit:
-    Category: ${category}
-    Description: ${description}
-    
-    Calculate the estimated CO2 savings in kg (kilograms) for this single action. 
-    Return a JSON object with:
-    1. co2Saved (number, kg)
-    2. encouragement (string, short message)
-    3. fact (string, one interesting environmental fact related to this action)
-  `;
-
-  const parts: any[] = [{ text: prompt }];
-  if (photoBase64) {
-    parts.push({
-      inlineData: {
-        mimeType: "image/jpeg",
-        data: photoBase64.split(',')[1] || photoBase64
-      }
-    });
-  }
-
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: { parts },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            co2Saved: { type: Type.NUMBER },
-            encouragement: { type: Type.STRING },
-            fact: { type: Type.STRING }
-          },
-          required: ["co2Saved", "encouragement", "fact"]
-        }
-      }
-    });
-
-    return JSON.parse(response.text);
-  } catch (error) {
-    console.error("Gemini analysis failed:", error);
-    return { co2Saved: 0.5, encouragement: "Great job keeping it green!", fact: "Every small action counts." };
-  }
+/* ── CO2 estimates by category (kg per action) ──────── */
+const CO2_BY_CATEGORY: Record<string, number> = {
+  transport: 1.2,
+  food: 2.5,
+  energy: 0.8,
+  waste: 0.4,
+  water: 0.3,
+  nature: 1.0,
 };
 
-export const getEcoTip = async (location: { lat: number, lng: number } | null) => {
-  const model = 'gemini-3-flash-preview';
-  const locationContext = location ? `User is at latitude ${location.lat}, longitude ${location.lng}. Give a tip relevant to their local climate or geography.` : "Give a general seasonal eco tip.";
-  
-  const prompt = `
-    ${locationContext}
-    Provide a daily eco-friendly tip.
-    Return a JSON object with:
-    1. title (string)
-    2. content (string)
-    3. category (string)
-  `;
+const ENCOURAGEMENTS = [
+  'Amazing — every action adds up to real change! 🌿',
+  'You\'re making the planet a little greener today! 🌍',
+  'Small steps, big impact. Keep it up! ♻️',
+  'Fantastic habit — you\'re an eco champion! ☀️',
+  'The Earth thanks you for this! 🌱',
+];
 
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            content: { type: Type.STRING },
-            category: { type: Type.STRING }
-          }
-        }
-      }
-    });
-    return JSON.parse(response.text);
-  } catch (error) {
-    return { 
-      title: "Conserve Energy", 
-      content: "Switch off lights when leaving a room to save electricity.",
-      category: "Energy"
-    };
-  }
+const FACTS: Record<string, string> = {
+  transport: 'Transport accounts for around 24% of global CO2 emissions from fuel combustion.',
+  food: 'A plant-based diet can reduce your food-related carbon footprint by up to 73%.',
+  energy: 'Switching to LED bulbs uses at least 75% less energy than traditional incandescent bulbs.',
+  waste: 'Recycling one aluminium can saves enough energy to run a TV for three hours.',
+  water: 'Only 3% of Earth\'s water is fresh — conserving it matters more than ever.',
+  nature: 'Forests absorb about 2.6 billion tonnes of CO2 every year.',
 };
+
+const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+export const analyzeHabit = async (
+  category: string,
+  description: string,
+  _photoBase64?: string   // kept for API compatibility; unused without AI
+): Promise<{ co2Saved: number; encouragement: string; fact: string }> => {
+  const key = category.toLowerCase();
+
+  // Simple length-based multiplier: longer descriptions imply bigger actions
+  const wordCount = description.trim().split(/\s+/).length;
+  const multiplier = wordCount > 10 ? 1.3 : wordCount > 5 ? 1.0 : 0.7;
+
+  const base = CO2_BY_CATEGORY[key] ?? 0.5;
+  const co2Saved = Math.round(base * multiplier * 100) / 100;
+
+  return {
+    co2Saved,
+    encouragement: pickRandom(ENCOURAGEMENTS),
+    fact: FACTS[key] ?? 'Every eco-friendly action helps protect our planet for future generations.',
+  };
+};
+
+// getEcoTip has been removed — tips are now hardcoded in App.tsx
